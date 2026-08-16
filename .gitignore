@@ -1,0 +1,26 @@
+# Data and model artifacts are reproducible from src/ and are too large to track.
+# The directory skeleton is kept via .gitkeep so a clean clone has somewhere to write.
+data/**
+!data/**/
+!data/**/.gitkeep
+
+models/**
+!models/**/
+!models/**/.gitkeep
+
+# Environment
+.venv/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# agent workflow
+ML_WORKFLOW.md
+work-with-jupyter.md
