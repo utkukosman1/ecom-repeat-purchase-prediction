@@ -17,7 +17,7 @@ stop for user review before starting the next. Never build ahead.
 | Stage | Deliverable | Status |
 |---|---|---|
 | 0 | Problem definition and task framing | **DONE** (`docs/problem_definition.md`) |
-| 1 | Project scaffold: uv env, folders, `src/logger.py`, `src/config.py`, git | pending |
+| 1 | Project scaffold: uv env, folders, `src/logger.py`, `src/config.py`, git | **DONE** |
 | 2 | Data acquisition: `src/data.py`, `data/raw/` | pending. **Must verify `max(invoice_date)`** and confirm `CUTOFF_DATE` leaves the 90-day label window fully populated |
 | 3 | EDA and leakage audit: `notebooks/01_eda.ipynb` | pending |
 | 4 | Cleaning: `src/cleaning.py`, `notebooks/02_cleaning.ipynb` | pending |
@@ -50,6 +50,17 @@ and read `docs/` first.
 | 0.8 | **No `class_weight`, no SMOTE, no resampling anywhere** | One knob per problem. Threshold tuning is the chosen imbalance mechanism; stacking both makes neither measurable |
 | 0.9 | RFM quintile heuristic is a required baseline, not just an analysis step | Beating the majority class proves nothing. Beating the rule marketing already uses is the real bar |
 | 0.10 | Seasonality accepted as a documented limitation | The 90-day window covers the Christmas peak. Data ends 2011-12-09, so no cutoff avoids it |
+
+### Stage 1
+
+| # | Decision | Rationale |
+|---|---|---|
+| 1.1 | Python pinned to `>=3.12,<3.13` | LightGBM, XGBoost and SHAP wheels lag new runtimes. Verified: all import cleanly on 3.12.13 |
+| 1.2 | `fastexcel` instead of `openpyxl` for the source xlsx | It is the engine Polars uses natively for `read_excel`, so the Excel read stays in Polars rather than routing through pandas |
+| 1.3 | Flat layout (`src/` as a plain package, not installed) | Matches the `sys.path.append(PROJECT_ROOT)` notebook convention in `work-with-jupyter.md`. `uv init --bare` avoids a packaging build step nothing needs |
+| 1.4 | `setup_logger` reuses an existing handler instead of adding one | Re-running a notebook cell would otherwise attach a second handler and print every line twice. `propagate = False` for the same reason |
+| 1.5 | `COUNTRY_VOCAB` and `FEATURE_COLUMNS` left undefined until Stage 5 | An early import should fail loudly rather than silently encode against `None` or an empty vocabulary |
+| 1.6 | Cost constants named `COST_MISSED_CHURNER` / `COST_WASTED_OFFER`, not `COST_FP` / `COST_FN` | The class polarity inverts (see decision 0.1). Confusion-matrix names would invite exactly the wrong wiring at Stage 8 |
 
 ---
 
