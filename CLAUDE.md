@@ -23,7 +23,7 @@ stop for user review before starting the next. Never build ahead.
 | 4 | Cleaning: `src/cleaning.py`, `notebooks/02_cleaning.ipynb` | pending |
 | 5 | Features and labels: `src/features.py`, `src/labels.py`, `notebooks/03_features_and_labels.ipynb` | pending |
 | 6 | Split and baselines: `notebooks/04_split_and_baseline.ipynb` | pending |
-| 7 | Advanced models: `notebooks/05_advanced_models.ipynb` | pending |
+| 7 | Advanced models (XGBoost, LightGBM): `notebooks/05_advanced_models.ipynb` | pending |
 | 8 | Comparison, threshold, selection: `notebooks/06_comparison_and_threshold.ipynb` | pending |
 | 9 | Explainability and error analysis: `notebooks/07_explainability_and_errors.ipynb` | pending |
 | 10 | Final model export: `notebooks/08_final_export.ipynb` | pending |
@@ -71,6 +71,16 @@ and read `docs/` first.
 | 2.3 | **`CUTOFF_DATE` moved 2011-09-10 to 2011-09-11** | `max(invoice_date)` is 2011-12-09 12:50. The old exclusive midnight bound discarded 1,633 transactions across 39 customers, wrongly flipping 3 labels to non-repeat. Now `PREDICTION_END` = 2011-12-10 and nothing is lost |
 | 2.4 | Raw Parquet is a format conversion only, no type coercion or filtering | Keeps `data/raw/` faithful to source. All cleaning belongs to Stage 4, so there is one place that owns it |
 | 2.5 | Base rate is about 43 percent, so imbalance is not the central problem | Threshold tuning in Stage 8 is justified by **asymmetric cost**, not by skew. Reinforces decision 0.8: still no class weighting |
+
+### Pre-registered for Stage 7
+
+Decided ahead of the stage so the model roster is fixed before any results are seen.
+Choosing candidates after seeing scores is how a comparison stops being a comparison.
+
+| # | Decision | Rationale |
+|---|---|---|
+| 7.1 | **Model roster is Logistic Regression, XGBoost, LightGBM. Random Forest is dropped.** | User decision, 2026-08-16: computation cost. RF is the weakest earner of the three tree candidates here, since XGBoost and LightGBM cover the same bagged-tree ground with better accuracy per unit of compute. Nothing in the comparison is lost that the two boosters do not already provide |
+| 7.2 | The two boosters still count as two independent families for the comparison | Principle: the workflow asks for two or three families tuned on identical folds. XGBoost and LightGBM differ enough in growth policy and regularization to be a real comparison, with Logistic Regression as the interpretable third |
 
 ---
 

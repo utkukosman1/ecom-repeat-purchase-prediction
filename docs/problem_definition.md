@@ -221,6 +221,12 @@ three.
    first coefficient-level story of what drives repeat purchase, and a sanity check on
    the features before any tree ensemble hides problems behind flexibility.
 
+The candidate roster for Stage 7 is fixed now, before any scores exist: **Logistic
+Regression, XGBoost and LightGBM**. Random Forest was dropped for computation cost, and
+loses nothing the two boosters do not already cover. Fixing the roster in advance keeps
+the comparison honest; picking candidates after seeing results is selection by another
+name. See decision 7.1 in `CLAUDE.md`.
+
 ---
 
 ## 8. Decision layer
