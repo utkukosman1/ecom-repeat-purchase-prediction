@@ -10,7 +10,7 @@ behavior, to feature engineering, to supervised machine learning, to a served mo
 ## Problem in one line
 
 Binary classification at customer grain. Features come from the 21 months before
-2011-09-10; the label is whether the customer ordered again in the 90 days after it.
+2011-09-11; the label is whether the customer ordered again in the 90 days after it.
 
 Full framing, including the cost model that sets the decision threshold, is in
 [docs/problem_definition.md](docs/problem_definition.md). Read it first.
@@ -28,13 +28,16 @@ That creates `.venv/` and installs everything from `uv.lock`.
 
 ## Getting the data
 
-Not yet implemented (Stage 2). The dataset will be downloaded by:
-
 ```bash
 uv run python -m src.data
 ```
 
-Raw files land in `data/raw/` and are never modified in place.
+Downloads the UCI Online Retail II workbook (43.5 MB) to `data/raw/`, then writes
+`data/raw/transactions_raw.parquet` (1,067,371 rows) so later stages skip the slow Excel
+parse. The download is skipped if the workbook is already present.
+
+Raw files are never modified in place. Provenance, schema and the two data issues found at
+acquisition are documented in [docs/data_provenance.md](docs/data_provenance.md).
 
 ## Running things
 
@@ -74,5 +77,6 @@ with an exit check, following [ML_WORKFLOW.md](ML_WORKFLOW.md).
 |---|---|
 | 0 Problem definition | done |
 | 1 Scaffold | done |
-| 2 Data acquisition | next |
-| 3 to 11 | pending |
+| 2 Data acquisition | done |
+| 3 EDA and leakage audit | next |
+| 4 to 11 | pending |

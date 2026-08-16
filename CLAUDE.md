@@ -18,7 +18,7 @@ stop for user review before starting the next. Never build ahead.
 |---|---|---|
 | 0 | Problem definition and task framing | **DONE** (`docs/problem_definition.md`) |
 | 1 | Project scaffold: uv env, folders, `src/logger.py`, `src/config.py`, git | **DONE** |
-| 2 | Data acquisition: `src/data.py`, `data/raw/` | pending. **Must verify `max(invoice_date)`** and confirm `CUTOFF_DATE` leaves the 90-day label window fully populated |
+| 2 | Data acquisition: `src/data.py`, `docs/data_provenance.md`, `data/raw/` | **DONE** |
 | 3 | EDA and leakage audit: `notebooks/01_eda.ipynb` | pending |
 | 4 | Cleaning: `src/cleaning.py`, `notebooks/02_cleaning.ipynb` | pending |
 | 5 | Features and labels: `src/features.py`, `src/labels.py`, `notebooks/03_features_and_labels.ipynb` | pending |
@@ -41,7 +41,7 @@ and read `docs/` first.
 | # | Decision | Rationale |
 |---|---|---|
 | 0.1 | Binary classification at customer grain, positive class = "will repeat" | Matches the project question and makes `predict_proba[:, 1]` mean the intuitive thing |
-| 0.2 | Cutoff 2011-09-10, horizon 90 days, observation window from 2009-12-01 | Maximizes feature history (about 21 months) while leaving an actionable 3-month horizon. Cutoff set so cutoff + 90d lands on the dataset's last day, keeping the label window fully populated |
+| 0.2 | Cutoff 2011-09-11, horizon 90 days, observation window from 2009-12-01 | Maximizes feature history (about 21 months) while leaving an actionable 3-month horizon. Cutoff set so cutoff + 90d clears the dataset's last timestamp, keeping the label window fully populated. Corrected in Stage 2, see decision 2.3 |
 | 0.3 | Population = non-null `Customer ID` with at least one non-cancelled invoice before cutoff | A customer who first appears after the cutoff did not exist to us at scoring time |
 | 0.4 | Recency anchored to `CUTOFF_DATE`, never to `max(invoice_date)` | Anchoring to the data max silently imports the future. The primary leak risk in this project |
 | 0.5 | Random stratified 80/20 split, StratifiedKFold(5) on train | One row per customer, no time axis and no repeated entity inside the table, so temporal and group splits are unnecessary |
@@ -61,6 +61,16 @@ and read `docs/` first.
 | 1.4 | `setup_logger` reuses an existing handler instead of adding one | Re-running a notebook cell would otherwise attach a second handler and print every line twice. `propagate = False` for the same reason |
 | 1.5 | `COUNTRY_VOCAB` and `FEATURE_COLUMNS` left undefined until Stage 5 | An early import should fail loudly rather than silently encode against `None` or an empty vocabulary |
 | 1.6 | Cost constants named `COST_MISSED_CHURNER` / `COST_WASTED_OFFER`, not `COST_FP` / `COST_FN` | The class polarity inverts (see decision 0.1). Confusion-matrix names would invite exactly the wrong wiring at Stage 8 |
+
+### Stage 2
+
+| # | Decision | Rationale |
+|---|---|---|
+| 2.1 | **`SOURCE_SCHEMA` pins all eight dtypes; the Excel reader never infers** | Inference sampled the opening rows where every `Invoice` looks numeric, chose Int64, and silently nulled all 19,500 `C`-prefixed cancellation invoices. No error, correct row count, invisible damage. Would have flattened `is_cancellation` to always-false and corrupted `frequency`, the top RFM feature |
+| 2.2 | `validate_raw()` runs on every load and raises on null invoices or zero cancellations | Regression guard for 2.1. The bug's failure mode was silence, so the guard has to be an assertion, not a log line |
+| 2.3 | **`CUTOFF_DATE` moved 2011-09-10 to 2011-09-11** | `max(invoice_date)` is 2011-12-09 12:50. The old exclusive midnight bound discarded 1,633 transactions across 39 customers, wrongly flipping 3 labels to non-repeat. Now `PREDICTION_END` = 2011-12-10 and nothing is lost |
+| 2.4 | Raw Parquet is a format conversion only, no type coercion or filtering | Keeps `data/raw/` faithful to source. All cleaning belongs to Stage 4, so there is one place that owns it |
+| 2.5 | Base rate is about 43 percent, so imbalance is not the central problem | Threshold tuning in Stage 8 is justified by **asymmetric cost**, not by skew. Reinforces decision 0.8: still no class weighting |
 
 ---
 
@@ -114,8 +124,8 @@ Plus:
 1. **The test set is sacred.** Split once, save to disk, load those files everywhere. Tune
    hyperparameters *and* thresholds *and* model choice on out-of-fold training data. The
    test set confirms a decision already made.
-2. **No post-cutoff data in any feature.** Features from `[2009-12-01, 2011-09-10)`, label
-   from `[2011-09-10, 2011-12-09)`. Recency against `CUTOFF_DATE`.
+2. **No post-cutoff data in any feature.** Features from `[2009-12-01, 2011-09-11)`, label
+   from `[2011-09-11, 2011-12-10)`. Recency against `CUTOFF_DATE`.
 3. **Train and serve run the same code.** Pin `COUNTRY_VOCAB` explicitly, bundle scalers
    inside the pipeline, reindex serving input to the schema in `model_metadata.json`. One
    row and a million rows must encode identically, and there is a pytest for it.

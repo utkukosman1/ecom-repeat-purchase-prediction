@@ -45,7 +45,7 @@ RANDOM_SEED = 42
 # Temporal design (Stage 0, section 5 of docs/problem_definition.md)
 #
 #   OBSERVATION WINDOW (features)              PREDICTION WINDOW (label)
-#   2009-12-01 -------------------> 2011-09-10 -------------------> 2011-12-09
+#   2009-12-01 -------------------> 2011-09-11 -------------------> 2011-12-10
 #                                       ^
 #                                    CUTOFF
 #
@@ -53,17 +53,18 @@ RANDOM_SEED = 42
 # [CUTOFF_DATE, PREDICTION_END). Recency is always measured against CUTOFF_DATE and never
 # against max(invoice_date), which would silently import the future.
 #
-# The cutoff is chosen so that CUTOFF_DATE + HORIZON_DAYS lands on the last day present in
-# the dataset, which keeps the prediction window fully populated. Stage 2 verifies the
-# actual max(invoice_date); if transactions exist on 2011-12-09 itself, the exclusive
-# midnight bound here drops that final partial day and the cutoff shifts by one.
+# The cutoff is set so that CUTOFF_DATE + HORIZON_DAYS clears the last timestamp in the
+# dataset, keeping the prediction window fully populated. Verified in Stage 2: the data
+# runs to 2011-12-09 12:50:00, so an exclusive bound of 2011-12-10 captures the final
+# trading day. A cutoff of 2011-09-10 would have ended the window at midnight on
+# 2011-12-09 and discarded 1,633 transactions, flipping 3 customer labels.
 #
 # These are datetimes rather than dates because `invoice_date` is a timestamp column;
 # comparing like to like avoids dtype friction in Polars. Midnight is the boundary.
 # --------------------------------------------------------------------------------------
 
 OBSERVATION_START = datetime(2009, 12, 1)
-CUTOFF_DATE = datetime(2011, 9, 10)
+CUTOFF_DATE = datetime(2011, 9, 11)
 HORIZON_DAYS = 90
 PREDICTION_END = CUTOFF_DATE + timedelta(days=HORIZON_DAYS)
 

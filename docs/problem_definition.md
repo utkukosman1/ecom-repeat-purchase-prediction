@@ -150,7 +150,7 @@ leakage would enter.
 
 ```
 OBSERVATION WINDOW (features)              PREDICTION WINDOW (label)
-2009-12-01 ───────────────────► 2011-09-10 ──────────────────► 2011-12-09
+2009-12-01 ───────────────────► 2011-09-11 ──────────────────► 2011-12-10
         about 21 months of history            90 days
                                     ▲
                                  CUTOFF
@@ -159,14 +159,14 @@ OBSERVATION WINDOW (features)              PREDICTION WINDOW (label)
 | Parameter | Value |
 |---|---|
 | `OBSERVATION_START` | 2009-12-01 (first transaction in the dataset) |
-| `CUTOFF_DATE` | 2011-09-10 |
+| `CUTOFF_DATE` | 2011-09-11 |
 | `HORIZON_DAYS` | 90 |
-| Prediction window | `[2011-09-10, 2011-12-09)` |
+| Prediction window | `[2011-09-11, 2011-12-10)` |
 
-The cutoff is set so that `CUTOFF_DATE + HORIZON_DAYS` lands on the last day in the
-dataset, keeping the prediction window fully populated. Stage 2 confirms the true
-`max(invoice_date)`; if transactions fall on 2011-12-09 itself, the exclusive midnight
-bound drops that final partial day and the cutoff moves one day later.
+The cutoff is set so that `CUTOFF_DATE + HORIZON_DAYS` clears the last timestamp in the
+dataset, keeping the prediction window fully populated. Confirmed in Stage 2: the data
+runs to 2011-12-09 12:50:00, and an exclusive bound of 2011-12-10 loses nothing. See
+`docs/data_provenance.md` for what the earlier one-day-short boundary would have cost.
 
 **Population:** customers with a non-null `Customer ID` and at least one non-cancelled
 invoice strictly before the cutoff. A customer who first appears only in the prediction
