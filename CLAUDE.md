@@ -78,7 +78,7 @@ Full evidence in `notebooks/01_eda.ipynb`. Numbers below are from the executed n
 
 | # | Decision | Rationale |
 |---|---|---|
-| 3.1 | **Stage 4 drops non-product rows by an explicit code list, never by regex** | `DCGS*` and `SP1002` look like junk codes but are **real products** (`MISO PRETTY GUM`, `SUNJAR LED NIGHT LIGHT`, `KID'S CHALKBOARD/EASEL`). A "drop everything non-standard" rule would silently delete real purchases |
+| 3.1 | **Stage 4 trims `stock_code` whitespace first, then drops non-product rows by an explicit code list, never by regex** | `DCGS*` and `SP1002` look like junk codes but are **real products** (`MISO PRETTY GUM`, `SUNJAR LED NIGHT LIGHT`, `KID'S CHALKBOARD/EASEL`). A "drop everything non-standard" rule would silently delete real purchases. Separately, `47503J ` carries a trailing space and fails the pattern on whitespace alone |
 | 3.2 | Negative quantity is **not** a cancellation marker | 3,457 rows have negative quantity and no `C` prefix. All zero price, all unattributed, described as `damages`, `check`, `missing`, `smashed`. These are warehouse write-offs, not customer returns |
 | 3.3 | Three invoice prefixes exist, not two: numeric, `C`, and `A` | The 6 `A` rows are "Adjust bad debt" accounting entries carrying -147,614 revenue. Undocumented; found by chasing the negative prices. Dropped in Stage 4 |
 | 3.4 | Keep the 12,133 exact duplicate rows (1.14 percent) | Genuinely ambiguous (repeated till scans vs export fault). They do not change invoice-level features at all, and the only exposure is monetary totals. Revisit if monetary features misbehave |
