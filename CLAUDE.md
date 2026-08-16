@@ -19,7 +19,7 @@ stop for user review before starting the next. Never build ahead.
 | 0 | Problem definition and task framing | **DONE** (`docs/problem_definition.md`) |
 | 1 | Project scaffold: uv env, folders, `src/logger.py`, `src/config.py`, git | **DONE** |
 | 2 | Data acquisition: `src/data.py`, `docs/data_provenance.md`, `data/raw/` | **DONE** |
-| 3 | EDA and leakage audit: `notebooks/01_eda.ipynb` | pending |
+| 3 | EDA and leakage audit: `notebooks/01_eda.ipynb` | **DONE** |
 | 4 | Cleaning: `src/cleaning.py`, `notebooks/02_cleaning.ipynb` | pending |
 | 5 | Features and labels: `src/features.py`, `src/labels.py`, `notebooks/03_features_and_labels.ipynb` | pending |
 | 6 | Split and baselines: `notebooks/04_split_and_baseline.ipynb` | pending |
@@ -72,6 +72,24 @@ and read `docs/` first.
 | 2.4 | Raw Parquet is a format conversion only, no type coercion or filtering | Keeps `data/raw/` faithful to source. All cleaning belongs to Stage 4, so there is one place that owns it |
 | 2.5 | Base rate is about 43 percent, so imbalance is not the central problem | Threshold tuning in Stage 8 is justified by **asymmetric cost**, not by skew. Reinforces decision 0.8: still no class weighting |
 
+### Stage 3
+
+Full evidence in `notebooks/01_eda.ipynb`. Numbers below are from the executed notebook.
+
+| # | Decision | Rationale |
+|---|---|---|
+| 3.1 | **Stage 4 drops non-product rows by an explicit code list, never by regex** | `DCGS*` and `SP1002` look like junk codes but are **real products** (`MISO PRETTY GUM`, `SUNJAR LED NIGHT LIGHT`, `KID'S CHALKBOARD/EASEL`). A "drop everything non-standard" rule would silently delete real purchases |
+| 3.2 | Negative quantity is **not** a cancellation marker | 3,457 rows have negative quantity and no `C` prefix. All zero price, all unattributed, described as `damages`, `check`, `missing`, `smashed`. These are warehouse write-offs, not customer returns |
+| 3.3 | Three invoice prefixes exist, not two: numeric, `C`, and `A` | The 6 `A` rows are "Adjust bad debt" accounting entries carrying -147,614 revenue. Undocumented; found by chasing the negative prices. Dropped in Stage 4 |
+| 3.4 | Keep the 12,133 exact duplicate rows (1.14 percent) | Genuinely ambiguous (repeated till scans vs export fault). They do not change invoice-level features at all, and the only exposure is monetary totals. Revisit if monetary features misbehave |
+| 3.5 | Do **not** clip quantity outliers | The extremes are a matched pair: invoice 581483 (+80,995) and its exact cancellation `C581484` (-80,995). Real orders, not errors. Netting handles them |
+| 3.6 | Drop `description` and `source_sheet` columns | `description` duplicates `stock_code` and holds warehouse notes (`?`, `MIA`, `wet`). `source_sheet` encodes trading year, a crude time proxy and a potential leak |
+| 3.7 | Unattributed rows leave in **Stage 5 as a population filter**, not in Stage 4 cleaning | 243,007 rows (22.8 percent) but only 13.7 percent of revenue. Zero invoices mix attributed and unattributed rows, so aggregation stays clean. Population definition and cleaning are different jobs |
+| 3.8 | **Build `cancel_order_rate`, not just the raw count** | Cancellations correlate **positively** with repeat (0.577 vs 0.329), the opposite of the naive expectation. Cancelling proxies for order volume. The rate lets the model separate "returns a lot relative to purchases" from "simply buys a lot" |
+| 3.9 | Tenure is a denominator, not a predictor | `tenure_days` correlates +0.044 with the label, essentially nothing, while `recency_days` correlates -0.437. How long someone has been a customer says little; how recently they bought says a lot. Hence `recency_over_avg_gap` |
+| 3.10 | **The RFM heuristic is a serious competitor, not a formality** | Combined RFM score separates repeat rate from 0.072 to 0.906. A model reaching 0.80 ROC-AUC may not beat it. Stage 6 must report it honestly |
+| 3.11 | No Saturday trading (402 rows in two years) | Explains the day-and-a-half gap at the window boundary (2011-09-10 is a Saturday, 0 rows). Day-count features carry a weekly rhythm, so do not build finer-grained time features |
+
 ### Pre-registered for Stage 7
 
 Decided ahead of the stage so the model roster is fixed before any results are seen.
@@ -104,8 +122,11 @@ Choosing candidates after seeing scores is how a comparison stops being a compar
 Every notebook from Stage 3 onward follows this shape:
 
 1. Title cell: stage number, purpose in two sentences, what the reader should conclude.
-2. Constants cell: imported from `src/config.py`, at the very top.
-3. Setup cell: the `PROJECT_ROOT` / `sys.path` / `DATA_DIR` pattern plus `setup_logger`.
+2. Setup cell: the `PROJECT_ROOT` / `sys.path` / `DATA_DIR` pattern. This must come before
+   the constants cell, because `sys.path` has to be extended before anything can import
+   from `src`.
+3. Constants cell: imported from `src/config.py`, plus `setup_logger`. Nothing magic
+   appears further down.
 4. Section markdown cells (`## Load Data` and so on) opening each major block.
 
 Around every code cell, a markdown sandwich:

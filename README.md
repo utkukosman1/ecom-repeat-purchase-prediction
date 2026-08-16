@@ -78,5 +78,6 @@ with an exit check, following [ML_WORKFLOW.md](ML_WORKFLOW.md).
 | 0 Problem definition | done |
 | 1 Scaffold | done |
 | 2 Data acquisition | done |
-| 3 EDA and leakage audit | next |
-| 4 to 11 | pending |
+| 3 EDA and leakage audit | done |
+| 4 Cleaning | next |
+| 5 to 11 | pending |
