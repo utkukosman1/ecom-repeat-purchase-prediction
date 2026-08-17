@@ -133,3 +133,18 @@ FEATURE_COLUMNS = (
     "orders_last_30d", "orders_last_90d", "orders_last_180d",
     "spend_last_90d", "spend_last_365d", "spend_momentum",
 ) + tuple(f"country_{c}" for c in COUNTRY_VOCAB)
+
+# --------------------------------------------------------------------------------------
+# Preprocessing (Stage 6, notebooks/04_split_and_baseline.ipynb section 6)
+#
+# Which FEATURE_COLUMNS get scaled inside the modeling pipeline. Binary columns (the
+# country one-hots plus is_single_order_customer) pass through unscaled, since scaling a
+# 0/1 flag changes nothing but its units. Everything else is a count, ratio or monetary
+# value and gets standardized. Used by src/modeling.py's build_preprocessor(), shared by
+# every Pipeline from Stage 6 onward so the preprocessing is never redefined per notebook.
+# --------------------------------------------------------------------------------------
+
+BINARY_COLUMNS = ("is_single_order_customer",) + tuple(
+    c for c in FEATURE_COLUMNS if c.startswith("country_")
+)
+CONTINUOUS_COLUMNS = tuple(c for c in FEATURE_COLUMNS if c not in BINARY_COLUMNS)

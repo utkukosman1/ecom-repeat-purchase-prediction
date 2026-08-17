@@ -38,6 +38,15 @@ def _rfm_and_lifecycle(obs_purchases: pl.DataFrame, cutoff, window_days: int) ->
     null, they get `window_days` (the full observation span), the largest gap we can
     justify with no repeat history to judge from. `is_single_order_customer` lets the
     model separate "no gap history" from "a genuinely wide gap".
+
+    Floored at 1.0 day for multi-order customers: `.dt.total_days()` truncates to whole
+    days, so two or more orders placed on the same calendar day compute a gap of exactly
+    0, and `recency_days / 0` in `recency_over_avg_gap` below produces `inf`. Not a null,
+    so the Stage 5 null-count check did not catch it; found when the Stage 6 Logistic
+    Regression pipeline rejected the matrix outright. 73 of 5,256 customers were affected.
+    A 1-day floor matches the day-level granularity already chosen elsewhere (no Saturday
+    trading means day-count features carry a weekly rhythm; see EDA decision 3.11) rather
+    than resolving sub-day timing that nothing else in the feature set uses.
     """
     return (
         obs_purchases.group_by("customer_id")
@@ -56,8 +65,11 @@ def _rfm_and_lifecycle(obs_purchases: pl.DataFrame, cutoff, window_days: int) ->
         .with_columns(
             pl.when(pl.col("frequency") > 1)
             .then(
-                (pl.col("_last_order") - pl.col("_first_order")).dt.total_days()
-                / (pl.col("frequency") - 1)
+                pl.max_horizontal(
+                    (pl.col("_last_order") - pl.col("_first_order")).dt.total_days()
+                    / (pl.col("frequency") - 1),
+                    pl.lit(1.0),
+                )
             )
             .otherwise(pl.lit(float(window_days)))
             .alias("avg_days_between_orders")
@@ -183,6 +195,17 @@ def build_customer_features(tx: pl.DataFrame, cutoff=CUTOFF_DATE) -> pl.DataFram
     null_report = {k: v for k, v in features.null_count().row(0, named=True).items() if v > 0}
     if null_report:
         raise ValueError(f"unexpected nulls in customer features: {null_report}")
+
+    # Regression guard: a ratio feature (recency_over_avg_gap) once divided by a gap that
+    # truncated to exactly 0, producing inf rather than null. A null-only check missed it;
+    # this would not.
+    numeric_cols = [c for c, dt in features.schema.items() if dt.is_numeric()]
+    inf_report = {
+        c: n for c in numeric_cols
+        if (n := features.select(pl.col(c).is_infinite().sum()).item()) > 0
+    }
+    if inf_report:
+        raise ValueError(f"non-finite values in customer features: {inf_report}")
 
     logger.info("built features: %s rows x %s columns", f"{features.height:,}", features.width)
     return features
