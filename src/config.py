@@ -98,13 +98,38 @@ MIN_ACCEPTABLE_ROC_AUC = 0.75
 MIN_COST_REDUCTION_VS_TRIVIAL = 0.20
 
 # --------------------------------------------------------------------------------------
-# Feature schema
+# Feature schema (Stage 5, notebooks/03_features_and_labels.ipynb section 6)
 #
-# COUNTRY_VOCAB and FEATURE_COLUMNS are pinned here in Stage 5, once EDA has shown which
-# countries clear a minimum customer count. They are deliberately NOT defined yet: an
-# early import should fail loudly rather than quietly encode against an empty or None
-# vocabulary.
+# Countries with at least MIN_COUNTRY_CUSTOMERS customers in the observation window, all
+# others fold into "Other". Pinned once here and never inferred from a batch, so encoding
+# one row and encoding a million rows produce identical columns. Covers 96.3 percent of
+# customers directly.
 # --------------------------------------------------------------------------------------
 
-# COUNTRY_VOCAB: tuple[str, ...]     <- set in Stage 5
-# FEATURE_COLUMNS: tuple[str, ...]   <- set in Stage 5
+MIN_COUNTRY_CUSTOMERS = 20
+
+COUNTRY_VOCAB = (
+    "Belgium", "France", "Germany", "Netherlands", "Other", "Spain", "Switzerland",
+    "United Kingdom",
+)
+
+# The exact, ordered column set of the encoded feature matrix, excluding `customer_id`
+# and `y`. `encode_features()` in `src/features.py` reindexes to this list, which is what
+# guarantees a single row and a full batch produce identical columns in identical order.
+# One-hot country columns are named `country_<value>` and derived from COUNTRY_VOCAB
+# rather than duplicated here, so the two can never drift apart.
+FEATURE_COLUMNS = (
+    # RFM core
+    "recency_days", "frequency", "monetary_total", "monetary_avg_per_order",
+    # lifecycle
+    "tenure_days", "avg_days_between_orders", "recency_over_avg_gap",
+    "is_single_order_customer",
+    # basket
+    "total_quantity", "distinct_products", "avg_items_per_order", "avg_unit_price",
+    "avg_distinct_products_per_order", "distinct_active_months",
+    # returns
+    "cancel_order_count", "cancel_order_rate", "return_value_ratio",
+    # momentum
+    "orders_last_30d", "orders_last_90d", "orders_last_180d",
+    "spend_last_90d", "spend_last_365d", "spend_momentum",
+) + tuple(f"country_{c}" for c in COUNTRY_VOCAB)
